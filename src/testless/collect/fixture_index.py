@@ -9,6 +9,11 @@ from pathlib import Path
 class FixtureIndex:
     """Map test node IDs to their declared fixture parameters."""
 
+    _IGNORED_PARTS = {
+        ".venv", "venv", ".git", ".worktrees", "node_modules",
+        "build", "dist", ".tox", "__pycache__", ".subactor", ".planfile"
+    }
+
     def __init__(self) -> None:
         self._test_fixtures: dict[str, list[str]] = {}
         self._fixture_defs: dict[str, str] = {}  # fixture name -> file
@@ -17,6 +22,11 @@ class FixtureIndex:
         """Recursively scan a directory for test files and conftest.py."""
         root = Path(directory)
         for py_file in root.rglob("*.py"):
+            if any(
+                part in self._IGNORED_PARTS or (part.startswith(".") and part not in (".", ".."))
+                for part in py_file.parts[:-1]
+            ):
+                continue
             self._scan_file(py_file)
 
     def _scan_file(self, path: Path) -> None:

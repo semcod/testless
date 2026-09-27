@@ -10,11 +10,33 @@ from pathlib import Path
 from testless.models.findings import TestMeta
 
 
+def resolve_python_executable(custom_python: str | None = None) -> str:
+    """Resolve the appropriate Python executable (custom, venv, or current)."""
+    if custom_python and Path(custom_python).is_file():
+        return str(Path(custom_python).resolve())
+    import os
+    if "VIRTUAL_ENV" in os.environ:
+        candidate = Path(os.environ["VIRTUAL_ENV"]) / "bin" / "python"
+        if candidate.is_file():
+            return str(candidate.resolve())
+    for rel in (
+        ".venv/bin/python",
+        "venv/bin/python",
+        ".venv/Scripts/python.exe",
+        "venv/Scripts/python.exe",
+    ):
+        candidate = Path(rel)
+        if candidate.is_file():
+            return str(candidate.resolve())
+    return sys.executable
+
+
 def run_pytest(
     packages: list[str],
     test_dirs: list[str],
     coverage_dir: str = ".coverage_data",
     extra_args: list[str] | None = None,
+    python_executable: str | None = None,
 ) -> tuple[list[TestMeta], Path]:
     """
     Run pytest with coverage contexts enabled and collect test metadata.
@@ -34,8 +56,10 @@ def run_pytest(
     else:
         cov_source = "."
 
+    python_bin = resolve_python_executable(python_executable)
+
     cmd = [
-        sys.executable,
+        python_bin,
         "-m",
         "pytest",
         "--tb=no",
@@ -68,7 +92,7 @@ def run_pytest(
     try:
         subprocess.run(
             [
-                sys.executable,
+                python_bin,
                 "-m",
                 "coverage",
                 "json",

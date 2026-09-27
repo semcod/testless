@@ -39,6 +39,11 @@ class EndpointInventory:
     _HTTP_CLIENT_INDICATORS = {"requests", "httpx", "aiohttp", "urllib", "ClientSession"}
     _RETRY_INDICATORS = {"retry", "backoff", "tenacity", "Retry"}
 
+    _IGNORED_PARTS = {
+        ".venv", "venv", ".git", ".worktrees", "node_modules",
+        "build", "dist", ".tox", "__pycache__", ".subactor", ".planfile"
+    }
+
     def __init__(self) -> None:
         self.endpoints: list[EndpointInfo] = []
         self.services: list[ServiceInfo] = []
@@ -47,6 +52,12 @@ class EndpointInventory:
         """Recursively scan Python source files."""
         root = Path(directory)
         for py_file in root.rglob("*.py"):
+            # Skip ignored directories and vendor packages
+            if any(
+                part in self._IGNORED_PARTS or (part.startswith(".") and part not in (".", ".."))
+                for part in py_file.parts[:-1]
+            ):
+                continue
             # Skip test files
             if py_file.name.startswith("test_") or py_file.name.endswith("_test.py"):
                 continue
