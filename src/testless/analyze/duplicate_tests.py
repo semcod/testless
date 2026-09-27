@@ -6,9 +6,9 @@ import ast
 import difflib
 from pathlib import Path
 
+from testless.collect.fixture_index import FixtureIndex
 from testless.models.coverage_map import CoverageMap
 from testless.models.findings import DuplicateFinding, TestMeta
-from testless.collect.fixture_index import FixtureIndex
 
 
 def _ast_similarity(file_a: str, name_a: str, file_b: str, name_b: str) -> float:

@@ -70,3 +70,35 @@ def test_load_strips_phase_suffix(tmp_path: Path):
     # All phases should map to the same node_id
     assert fc.line_to_tests[10] == ["tests/test_x.py::test_a"]
     assert fc.line_to_tests[11] == ["tests/test_x.py::test_a"]
+
+
+def test_load_coverage_7x_format(tmp_path: Path):
+    """Verify loading real coverage.py 7.x schema with line number keys."""
+    coverage_data = {
+        "files": {
+            "src/service.py": {
+                "contexts": {
+                    "10": ["test|tests/test_service.py::test_alpha|run"],
+                    "20": [
+                        "test|tests/test_service.py::test_alpha|run",
+                        "test|tests/test_service.py::test_beta|run",
+                    ],
+                    "30": ["test|tests/test_service.py::test_beta|run"],
+                    "40": ["test"],  # should be ignored
+                }
+            }
+        }
+    }
+    p = tmp_path / "cov7.json"
+    _write_coverage_json(p, coverage_data)
+
+    cmap = load_coverage_json(p)
+    assert "src/service.py" in cmap.files
+    fc = cmap.files["src/service.py"]
+
+    assert fc.line_to_tests[10] == ["tests/test_service.py::test_alpha"]
+    assert "tests/test_service.py::test_alpha" in fc.line_to_tests[20]
+    assert "tests/test_service.py::test_beta" in fc.line_to_tests[20]
+    assert fc.line_to_tests[30] == ["tests/test_service.py::test_beta"]
+    assert 40 not in fc.line_to_tests
+

@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from testless.analyze.duplicate_tests import find_duplicates, _duplicate_score
+from testless.analyze.duplicate_tests import _duplicate_score, find_duplicates
 from testless.collect.fixture_index import FixtureIndex
 from testless.models.coverage_map import CoverageMap, FileCoverage
 from testless.models.findings import TestMeta

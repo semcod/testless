@@ -5,9 +5,8 @@ from __future__ import annotations
 import textwrap
 from pathlib import Path
 
-from testless.collect.fixture_index import FixtureIndex
 from testless.collect.endpoint_inventory import EndpointInventory
-
+from testless.collect.fixture_index import FixtureIndex
 
 # ---------------------------------------------------------------------------
 # FixtureIndex
@@ -116,3 +115,18 @@ def test_endpoint_inventory_detects_sql_service(tmp_path: Path):
     inv.scan_directory(tmp_path)
     sql_services = [s for s in inv.services if s.has_sql]
     assert len(sql_services) >= 1
+
+
+def test_run_pytest_resilient(tmp_path: Path):
+    from testless.collect.pytest_runner import run_pytest
+
+    cov_dir = tmp_path / "cov"
+    # Run with empty tests list or a single test file to verify command construction does not fail
+    tests, json_path = run_pytest(
+        packages=["testless.config"],
+        test_dirs=["tests/test_config.py"],
+        coverage_dir=str(cov_dir),
+    )
+    assert json_path.exists()
+    assert isinstance(tests, list)
+

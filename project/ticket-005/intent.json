@@ -1,0 +1,16 @@
+{
+  "ticket": "ticket-005",
+  "summary": "Fix coverage contexts loading schema for coverage.py 7.x, resilient pytest scan runner, and pytest src pythonpath",
+  "allowedPaths": [
+    "pyproject.toml",
+    "project/ticket-005/**",
+    "src/testless/**",
+    "tests/**"
+  ],
+  "forbiddenPaths": [
+    ".env",
+    ".github/workflows/**"
+  ],
+  "authorization": "SESSION_EXECUTION_AUTHORIZATION",
+  "outcome": "testless correctly scans test coverage with contexts and accurately computes duplicate and dead tests on modern coverage.py 7.x output."
+}
