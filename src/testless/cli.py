@@ -53,11 +53,11 @@ def scan(ctx: click.Context, out: str | None) -> None:
 @click.pass_context
 def duplicates(ctx: click.Context, min_overlap: float | None, coverage_json: str | None) -> None:
     """Detect duplicate tests based on coverage overlap, AST similarity, and fixture use."""
+    from testless.analyze.duplicate_tests import find_duplicates
     from testless.collect.coverage_loader import load_coverage_json
     from testless.collect.fixture_index import FixtureIndex
-    from testless.analyze.duplicate_tests import find_duplicates
-    from testless.reporters.console import print_report
     from testless.models.findings import AnalysisReport, TestMeta
+    from testless.reporters.console import print_report
 
     cfg = ctx.obj["config"]
     min_score = min_overlap if min_overlap is not None else cfg.min_duplicate_score
@@ -109,10 +109,10 @@ def duplicates(ctx: click.Context, min_overlap: float | None, coverage_json: str
 @click.pass_context
 def missing(ctx: click.Context, services: tuple[str, ...]) -> None:
     """Suggest missing smoke, e2e, contract, and TestQL tests."""
-    from testless.collect.endpoint_inventory import EndpointInventory
     from testless.analyze.missing_tests import find_missing_tests
-    from testless.reporters.console import print_report
+    from testless.collect.endpoint_inventory import EndpointInventory
     from testless.models.findings import AnalysisReport
+    from testless.reporters.console import print_report
 
     cfg = ctx.obj["config"]
     dirs = list(services) if services else cfg.packages or ["."]
@@ -152,17 +152,17 @@ def planfiles(
     with_prompts: bool,
 ) -> None:
     """Generate planfile YAML tickets for LLM from all findings."""
-    from testless.collect.coverage_loader import load_coverage_json
-    from testless.collect.fixture_index import FixtureIndex
-    from testless.collect.endpoint_inventory import EndpointInventory
-    from testless.analyze.duplicate_tests import find_duplicates
     from testless.analyze.dead_tests import find_dead_tests
+    from testless.analyze.duplicate_tests import find_duplicates
     from testless.analyze.missing_tests import find_missing_tests
     from testless.analyze.refactor_candidates import find_refactor_candidates
-    from testless.tickets.builder import build_planfiles
-    from testless.tickets.serializer import write_planfiles, write_summary_json
-    from testless.tickets.prompts import attach_prompt
+    from testless.collect.coverage_loader import load_coverage_json
+    from testless.collect.endpoint_inventory import EndpointInventory
+    from testless.collect.fixture_index import FixtureIndex
     from testless.models.findings import AnalysisReport, TestMeta
+    from testless.tickets.builder import build_planfiles
+    from testless.tickets.prompts import attach_prompt
+    from testless.tickets.serializer import write_planfiles, write_summary_json
 
     cfg = ctx.obj["config"]
     output_dir = out or cfg.planfiles_dir
@@ -235,15 +235,15 @@ def doctor(
     services: tuple[str, ...],
 ) -> None:
     """Answer questions about test health (what to remove, add, or fix)."""
-    from testless.collect.coverage_loader import load_coverage_json
-    from testless.collect.fixture_index import FixtureIndex
-    from testless.collect.endpoint_inventory import EndpointInventory
-    from testless.analyze.duplicate_tests import find_duplicates
     from testless.analyze.dead_tests import find_dead_tests
+    from testless.analyze.duplicate_tests import find_duplicates
     from testless.analyze.missing_tests import find_missing_tests
     from testless.analyze.refactor_candidates import find_refactor_candidates
-    from testless.reporters.console import print_report
+    from testless.collect.coverage_loader import load_coverage_json
+    from testless.collect.endpoint_inventory import EndpointInventory
+    from testless.collect.fixture_index import FixtureIndex
     from testless.models.findings import AnalysisReport, TestMeta
+    from testless.reporters.console import print_report
 
     cfg = ctx.obj["config"]
 
@@ -304,3 +304,8 @@ def doctor(
             print_report(report)
     else:
         print_report(report)
+
+
+if __name__ == "__main__":
+    main()
+

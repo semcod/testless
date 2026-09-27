@@ -2,19 +2,14 @@
 
 from __future__ import annotations
 
-import pytest
-
-from testless.models.planfile import Planfile, PlanfileKind, RiskLevel, PlanfileImpact
+from testless.models.coverage_map import CoverageMap, FileCoverage
 from testless.models.findings import (
     AnalysisReport,
     DeadTestFinding,
     DuplicateFinding,
     MissingTestFinding,
-    RefactorFinding,
-    TestMeta,
 )
-from testless.models.coverage_map import CoverageMap, FileCoverage
-
+from testless.models.planfile import Planfile, PlanfileKind, RiskLevel
 
 # ---------------------------------------------------------------------------
 # Planfile

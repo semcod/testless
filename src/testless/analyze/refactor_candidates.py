@@ -7,7 +7,6 @@ from pathlib import Path
 
 from testless.models.findings import RefactorFinding, TestMeta
 
-
 _MAX_ASSERTIONS = 10
 _MAX_DURATION_S = 5.0
 _MAX_LINES = 80

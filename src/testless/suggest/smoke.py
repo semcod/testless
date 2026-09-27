@@ -4,7 +4,6 @@ from __future__ import annotations
 
 from testless.collect.endpoint_inventory import EndpointInfo
 
-
 _SMOKE_TEMPLATE = '''\
 """Smoke tests for {method} {path}."""
 import pytest

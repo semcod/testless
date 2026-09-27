@@ -5,7 +5,6 @@ from __future__ import annotations
 from testless.collect.endpoint_inventory import EndpointInfo, ServiceInfo
 from testless.models.findings import MissingTestFinding, TestMeta
 
-
 # Endpoint paths that should always have smoke test coverage
 _CRITICAL_PATHS = {"/health", "/login", "/logout", "/search", "/checkout", "/billing", "/register"}
 

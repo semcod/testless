@@ -11,10 +11,10 @@ from testless.models.findings import (
     MissingTestFinding,
     RefactorFinding,
 )
-from testless.tickets.builder import build_planfiles, build_duplicate_ticket
-from testless.tickets.serializer import write_planfiles, write_summary_json
-from testless.tickets.prompts import attach_prompt
 from testless.models.planfile import PlanfileKind
+from testless.tickets.builder import build_duplicate_ticket, build_planfiles
+from testless.tickets.prompts import attach_prompt
+from testless.tickets.serializer import write_planfiles, write_summary_json
 
 
 def test_build_duplicate_ticket():

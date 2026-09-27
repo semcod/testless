@@ -26,29 +26,89 @@ def run_pytest(
     cov_dir.mkdir(parents=True, exist_ok=True)
     json_path = cov_dir / "coverage.json"
 
-    cov_source = ",".join(packages) if packages else "."
+    # Auto-detect source package or directory if not explicitly provided
+    if packages:
+        cov_source = ",".join(packages)
+    elif Path("src").is_dir():
+        cov_source = "src"
+    else:
+        cov_source = "."
+
     cmd = [
         sys.executable,
         "-m",
         "pytest",
         "--tb=no",
         "-q",
-        "--json-report",
-        f"--json-report-file={cov_dir / 'report.json'}",
         f"--cov={cov_source}",
         f"--cov-report=json:{json_path}",
         "--cov-context=test",
     ]
+
+    import importlib.util
+
+    if importlib.util.find_spec("pytest_jsonreport") is not None:
+        cmd.extend([
+            "--json-report",
+            f"--json-report-file={cov_dir / 'report.json'}",
+        ])
+
     cmd += extra_args or []
     cmd += test_dirs
 
-    result = subprocess.run(cmd, capture_output=False, text=True)  # noqa: S603
+    import os
+
+    cov_db = cov_dir / ".coverage"
+    run_env = os.environ.copy()
+    run_env["COVERAGE_FILE"] = str(cov_db)
+
+    subprocess.run(cmd, env=run_env, capture_output=False, text=True)  # noqa: S603
+
+    # Ensure coverage.json is generated with line contexts via coverage CLI
+    try:
+        subprocess.run(
+            [
+                sys.executable,
+                "-m",
+                "coverage",
+                "json",
+                f"--data-file={cov_db}",
+                "--show-contexts",
+                "-o",
+                str(json_path),
+            ],
+            env=run_env,
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+    except Exception:
+        pass
 
     # Parse the pytest JSON report if available
     report_path = cov_dir / "report.json"
     tests: list[TestMeta] = []
     if report_path.exists():
         tests = _parse_report(report_path)
+
+    # Fallback: extract tests from coverage map contexts if report.json is absent
+    if not tests and json_path.exists():
+        from testless.collect.coverage_loader import load_coverage_json
+
+        cov_map = load_coverage_json(json_path)
+        all_node_ids: set[str] = set()
+        for fc in cov_map.files.values():
+            for tests_list in fc.line_to_tests.values():
+                all_node_ids.update(tests_list)
+        tests = [
+            TestMeta(
+                node_id=nid,
+                file=nid.split("::")[0],
+                name=nid.split("::")[-1],
+                status="passed",
+            )
+            for nid in sorted(all_node_ids)
+        ]
 
     return tests, json_path
 
