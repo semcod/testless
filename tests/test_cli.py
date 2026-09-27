@@ -18,6 +18,9 @@ def test_scan_help():
     runner = CliRunner()
     result = runner.invoke(main, ["scan", "--help"])
     assert result.exit_code == 0
+    assert "--source" in result.output
+    assert "--python" in result.output
+
 
 
 def test_duplicates_help():

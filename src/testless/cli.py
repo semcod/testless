@@ -24,21 +24,33 @@ def main(ctx: click.Context, config: str | None) -> None:
 # ---------------------------------------------------------------------------
 
 @main.command()
+@click.argument("test_paths", nargs=-1, type=click.Path())
+@click.option("--source", "-s", multiple=True, help="Source package or directory to measure coverage for.")
+@click.option("--python", default=None, help="Python executable to run pytest with.")
 @click.option("--out", default=None, help="Override coverage output directory.")
 @click.pass_context
-def scan(ctx: click.Context, out: str | None) -> None:
+def scan(
+    ctx: click.Context,
+    test_paths: tuple[str, ...],
+    source: tuple[str, ...],
+    python: str | None,
+    out: str | None,
+) -> None:
     """Run pytest with coverage contexts and collect test metadata."""
     from testless.collect.pytest_runner import run_pytest
 
     cfg = ctx.obj["config"]
     coverage_dir = out or cfg.coverage_dir
+    target_dirs = list(test_paths) if test_paths else cfg.test_dirs
+    target_packages = list(source) if source else cfg.packages
 
     click.echo(f"Running pytest with coverage contexts → {coverage_dir}")
     tests, cov_json = run_pytest(
-        packages=cfg.packages,
-        test_dirs=cfg.test_dirs,
+        packages=target_packages,
+        test_dirs=target_dirs,
         coverage_dir=coverage_dir,
         extra_args=cfg.pytest_args,
+        python_executable=python,
     )
     click.echo(f"Collected {len(tests)} tests. Coverage JSON: {cov_json}")
 

@@ -130,3 +130,58 @@ def test_run_pytest_resilient(tmp_path: Path):
     assert json_path.exists()
     assert isinstance(tests, list)
 
+
+def test_endpoint_inventory_ignores_vendor_dirs(tmp_path: Path):
+    venv_dir = tmp_path / ".venv" / "lib"
+    venv_dir.mkdir(parents=True)
+    vendor_file = venv_dir / "routes.py"
+    vendor_file.write_text(
+        textwrap.dedent("""\
+            @app.route('/vendor_endpoint')
+            def vendor():
+                pass
+        """)
+    )
+    inv = EndpointInventory()
+    inv.scan_directory(tmp_path)
+    paths = {e.path for e in inv.endpoints}
+    assert "/vendor_endpoint" not in paths
+
+
+def test_fixture_index_ignores_vendor_dirs(tmp_path: Path):
+    node_dir = tmp_path / "node_modules" / "sub"
+    node_dir.mkdir(parents=True)
+    vendor_file = node_dir / "conftest.py"
+    vendor_file.write_text(
+        textwrap.dedent("""\
+            import pytest
+
+            @pytest.fixture
+            def vendor_fixture():
+                return 42
+        """)
+    )
+    index = FixtureIndex()
+    index.scan_directory(tmp_path)
+    assert "vendor_fixture" not in index.all_defined_fixtures()
+
+
+def test_resolve_python_executable(tmp_path: Path, monkeypatch):
+    from testless.collect.pytest_runner import resolve_python_executable
+
+    # Custom python provided and exists
+    dummy_py = tmp_path / "custom_python"
+    dummy_py.write_text("#!/bin/sh\n")
+    assert resolve_python_executable(str(dummy_py)) == str(dummy_py.absolute())
+
+    # VIRTUAL_ENV set
+    fake_venv = tmp_path / "fake_env"
+    fake_bin = fake_venv / "bin"
+    fake_bin.mkdir(parents=True)
+    fake_py = fake_bin / "python"
+    fake_py.write_text("#!/bin/sh\n")
+    monkeypatch.setenv("VIRTUAL_ENV", str(fake_venv))
+    assert resolve_python_executable() == str(fake_py.absolute())
+
+
+
