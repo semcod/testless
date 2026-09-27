@@ -172,7 +172,7 @@ def test_resolve_python_executable(tmp_path: Path, monkeypatch):
     # Custom python provided and exists
     dummy_py = tmp_path / "custom_python"
     dummy_py.write_text("#!/bin/sh\n")
-    assert resolve_python_executable(str(dummy_py)) == str(dummy_py.resolve())
+    assert resolve_python_executable(str(dummy_py)) == str(dummy_py.absolute())
 
     # VIRTUAL_ENV set
     fake_venv = tmp_path / "fake_env"
@@ -181,6 +181,7 @@ def test_resolve_python_executable(tmp_path: Path, monkeypatch):
     fake_py = fake_bin / "python"
     fake_py.write_text("#!/bin/sh\n")
     monkeypatch.setenv("VIRTUAL_ENV", str(fake_venv))
-    assert resolve_python_executable() == str(fake_py.resolve())
+    assert resolve_python_executable() == str(fake_py.absolute())
+
 
 
