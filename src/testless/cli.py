@@ -15,6 +15,11 @@ from testless.config import load_config
 @click.pass_context
 def main(ctx: click.Context, config: str | None) -> None:
     """testless — analyze test value, coverage, duplication, and generate LLM planfiles."""
+    try:
+        from testless.autoupdate import check_for_updates
+        check_for_updates("testless")
+    except Exception:
+        pass
     ctx.ensure_object(dict)
     ctx.obj["config"] = load_config(config)
 
