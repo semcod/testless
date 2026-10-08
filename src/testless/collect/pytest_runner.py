@@ -2,11 +2,13 @@
 
 from __future__ import annotations
 
+import hashlib
 import json
 import os
 import subprocess
 import sys
 import tempfile
+import uuid
 import xml.etree.ElementTree as ET
 from pathlib import Path
 
@@ -61,7 +63,8 @@ def run_pytest(
     Run pytest with coverage contexts enabled and collect test metadata.
 
     Returns a tuple of (list[TestMeta], coverage_json_path).
-    The coverage JSON is written to *coverage_dir*/coverage.json.
+    The coverage JSON, with validated outcomes in the testless.scan/v1
+    metadata, is atomically published to *coverage_dir*/coverage.json.
     """
     cov_dir = Path(coverage_dir).resolve()
     cov_dir.mkdir(parents=True, exist_ok=True)
@@ -107,11 +110,21 @@ def run_pytest(
         except (OSError, ValueError) as exc:
             raise PytestRunError(f"Missing or invalid fresh pytest coverage report: {exc}") from exc
 
-        # Retain the public coverage.json location only after both fresh reports
-        # validate. A failed invocation preserves the previous successful scan.
+        # One public artifact binds validated outcomes to coverage. A single
+        # atomic replacement commits the complete scan; publication failure
+        # leaves the earlier complete artifact intact.
         destination = cov_dir / "coverage.json"
-        os.replace(json_path, destination)
-        os.replace(report_path, cov_dir / "report.xml")
+        try:
+            coverage["testless"] = {
+                "schema": "testless.scan/v1",
+                "observation_id": uuid.uuid4().hex,
+                "junit_sha256": hashlib.sha256(report_path.read_bytes()).hexdigest(),
+                "outcomes": [test.model_dump(mode="json") for test in tests],
+            }
+            json_path.write_text(json.dumps(coverage, ensure_ascii=False, allow_nan=False), encoding="utf-8")
+            os.replace(json_path, destination)
+        except (OSError, ValueError, TypeError) as exc:
+            raise PytestRunError(f"Cannot publish complete pytest scan: {exc}") from exc
         return tests, destination
 
 
