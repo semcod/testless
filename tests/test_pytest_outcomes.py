@@ -143,3 +143,59 @@ def test_failed_invocation_preserves_previous_snapshot(target, monkeypatch):
         scan(target, '# mock child')
     assert {name: (cov / name).read_text() for name in previous} == previous
     assert not list(cov.glob('.pytest-run-*'))
+
+
+def test_successful_scan_publishes_one_canonical_artifact(target, monkeypatch):
+    import hashlib
+    fake_run(monkeypatch, junit=JUNIT, coverage=COVERAGE)
+    real_replace = collector.os.replace
+    destinations = []
+
+    def replace(source, destination):
+        destinations.append(Path(destination).name)
+        return real_replace(source, destination)
+
+    monkeypatch.setattr(collector.os, 'replace', replace)
+    tests, path = scan(target, '# controlled child report')
+    data = json.loads(path.read_text())
+    assert destinations == ['coverage.json']
+    assert data['testless']['schema'] == 'testless.scan/v1'
+    assert len(data['testless']['observation_id']) == 32
+    assert data['testless']['junit_sha256'] == hashlib.sha256(JUNIT.encode()).hexdigest()
+    assert data['testless']['outcomes'] == [test.model_dump(mode='json') for test in tests]
+    assert data['files'] == json.loads(COVERAGE)['files']
+    assert not (path.parent / 'report.xml').exists()
+
+
+def fail_publication(target, monkeypatch):
+    cov = target / 'cov'
+    cov.mkdir()
+    previous = '{"files":{"old.py":{}},"testless":{"observation_id":"previous"}}'
+    (cov / 'coverage.json').write_text(previous)
+    fake_run(monkeypatch, junit=JUNIT, coverage=COVERAGE)
+    real_replace = collector.os.replace
+
+    def replace(source, destination):
+        if Path(destination) == cov / 'coverage.json':
+            raise OSError('publication denied')
+        return real_replace(source, destination)
+
+    monkeypatch.setattr(collector.os, 'replace', replace)
+    return cov, previous
+
+
+def test_publish_failure_preserves_previous_canonical_artifact(target, monkeypatch):
+    cov, previous = fail_publication(target, monkeypatch)
+    with pytest.raises(RuntimeError, match='publish'):
+        scan(target, '# controlled child report')
+    assert (cov / 'coverage.json').read_text() == previous
+    assert not list(cov.glob('.pytest-run-*'))
+
+
+def test_cli_reports_publish_failure_without_success(target, monkeypatch):
+    cov, previous = fail_publication(target, monkeypatch)
+    result = CliRunner().invoke(main, ['scan', '--out', str(cov)])
+    assert result.exit_code != 0
+    assert 'Error: Cannot publish complete pytest scan:' in result.output
+    assert 'Collected ' not in result.output
+    assert (cov / 'coverage.json').read_text() == previous
