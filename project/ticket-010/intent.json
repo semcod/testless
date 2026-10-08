@@ -1,0 +1,68 @@
+{
+  "schema": "new-project.intent/v3",
+  "ticket": "ticket-010",
+  "summary": "Reject incomplete pytest scans and require fresh observed test outcomes",
+  "workstream": "application",
+  "classification": {
+    "kind": "BUG",
+    "priority": "P1",
+    "origin": "regression"
+  },
+  "allowedPaths": [
+    "src/testless/collect/pytest_runner.py",
+    "src/testless/cli.py",
+    "tests/test_pytest_outcomes.py",
+    "project/ticket-010/**"
+  ],
+  "forbiddenPaths": [
+    ".env",
+    ".github/workflows/**",
+    ".subactor/manifest.json"
+  ],
+  "authorization": "SESSION_EXECUTION_AUTHORIZATION",
+  "queueRequest": "PLF-010",
+  "parentRequest": "paxlet-com/willmux:PLF-17161",
+  "dependsOn": [],
+  "conflictsWith": [],
+  "delivery": {
+    "acceptedBaseSha": "625d700c44e16723d9503b34a1783beaaa2752ac",
+    "targetBranch": "main",
+    "outcome": "Nonzero pytest and invalid or partial fresh reports fail the scan; successful outcomes come from builtin JUnit, not coverage contexts. Preserve earlier complete scan on failure.",
+    "nonGoals": [
+      "Governance adoption, protected policy/CI changes, runtime deployment, queue dispatch, direct approval/merge."
+    ],
+    "complexity": "S",
+    "estimatedMinutes": 35,
+    "budgets": {
+      "maxImplementationFiles": 3,
+      "maxAffectedComponents": 1,
+      "maxRuntimeDependencies": 0
+    },
+    "patchSha256": "76f39aefe0e3cfdbfb8e746b8d854fefe9c2189121c392171ce98ee835ed8f5e",
+    "validation": {
+      "baseline": {
+        "regressionsFailed": 23,
+        "details": "18 initial + 5 added checks reproduce defects"
+      },
+      "finalRegressions": {
+        "passed": 23,
+        "python": "3.13.12"
+      },
+      "fullLockedMatrix": {
+        "3.11.13": {
+          "pytest": "9.0.3",
+          "passed": 75,
+          "seconds": 100.42
+        },
+        "3.13.12": {
+          "pytest": "9.0.3",
+          "passed": 75,
+          "seconds": 95.68
+        }
+      },
+      "ruff": "PASS",
+      "gitApplyCheck": "PASS",
+      "currentRemoteMain": "625d700c44e16723d9503b34a1783beaaa2752ac"
+    }
+  }
+}
