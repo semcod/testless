@@ -11,10 +11,18 @@ from testless.models.coverage_map import CoverageMap
 from testless.models.findings import DuplicateFinding, TestMeta
 
 
-def _ast_similarity(file_a: str, name_a: str, file_b: str, name_b: str) -> float:
+def _ast_similarity(
+    file_a: str, name_a: str, file_b: str, name_b: str,
+    *, source_cache: dict[str, dict[str, str]] | None = None,
+) -> float:
     """Compute normalized edit-distance similarity between two test function bodies."""
 
+    sources = {} if source_cache is None else source_cache
+
     def _get_source(file: str, name: str) -> str:
+        if file in sources:
+            return sources[file].get(name, "")
+        sources[file] = {}
         path = Path(file)
         if not path.exists():
             return ""
@@ -24,9 +32,9 @@ def _ast_similarity(file_a: str, name_a: str, file_b: str, name_b: str) -> float
         except (SyntaxError, UnicodeDecodeError):
             return ""
         for node in ast.walk(tree):
-            if isinstance(node, ast.FunctionDef | ast.AsyncFunctionDef) and node.name == name:
-                return ast.unparse(node)
-        return ""
+            if isinstance(node, ast.FunctionDef | ast.AsyncFunctionDef) and node.name not in sources[file]:
+                sources[file][node.name] = ast.unparse(node)
+        return sources[file].get(name, "")
 
     src_a = _get_source(file_a, name_a)
     src_b = _get_source(file_b, name_b)
@@ -63,6 +71,16 @@ def find_duplicates(
     """Return pairs of tests that are likely duplicates."""
     findings: list[DuplicateFinding] = []
     seen: set[frozenset[str]] = set()
+    # Snapshot data once per analysis, never across invocations. Parsing and
+    # coverage lookup previously repeated for every pair (quadratic file I/O).
+    sources: dict[str, dict[str, str]] = {}
+    coverage: dict[str, set[tuple[str, int]]] = {test.node_id: set() for test in tests}
+    fixtures = {test.node_id: set(fixture_index.fixtures_for(test.node_id)) for test in tests}
+    for path, file_coverage in cov_map.files.items():
+        for line, node_ids in file_coverage.line_to_tests.items():
+            for node_id in node_ids:
+                if node_id in coverage:
+                    coverage[node_id].add((path, line))
 
     for i, test_a in enumerate(tests):
         for test_b in tests[i + 1 :]:
@@ -71,8 +89,16 @@ def find_duplicates(
                 continue
             seen.add(pair)
 
-            cov_overlap = cov_map.overlap(test_a.node_id, test_b.node_id)
-            fix_overlap = fixture_index.fixture_overlap(test_a.node_id, test_b.node_id)
+            lines_a, lines_b = coverage[test_a.node_id], coverage[test_b.node_id]
+            union = lines_a | lines_b
+            cov_overlap = len(lines_a & lines_b) / len(union) if union else 0.0
+            fa, fb = fixtures[test_a.node_id], fixtures[test_b.node_id]
+            fixture_union = fa | fb
+            fix_overlap = len(fa & fb) / len(fixture_union) if fixture_union else 0.0
+            # The same arithmetic order gives an upper bound on the score.
+            # Equality must still be analyzed because the threshold is inclusive.
+            if _duplicate_score(cov_overlap, 1.0, fix_overlap, 1.0) < min_score:
+                continue
 
             # Derive file and function name from node_id
             parts_a = test_a.node_id.split("::")
@@ -82,7 +108,7 @@ def find_duplicates(
             name_a = parts_a[-1] if parts_a else test_a.name
             name_b = parts_b[-1] if parts_b else test_b.name
 
-            ast_sim = _ast_similarity(file_a, name_a, file_b, name_b)
+            ast_sim = _ast_similarity(file_a, name_a, file_b, name_b, source_cache=sources)
             name_sim = _name_similarity(name_a, name_b)
 
             score = _duplicate_score(cov_overlap, ast_sim, fix_overlap, name_sim)
