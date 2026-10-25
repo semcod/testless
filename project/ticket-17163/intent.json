@@ -37,7 +37,7 @@
       "No reopening delivered source ticket-010 or duplicate parser implementation"
     ],
     "complexity": "XS",
-    "estimatedMinutes": 20,
+    "estimatedMinutes": 10,
     "budgets": {
       "maxImplementationFiles": 2,
       "maxAffectedComponents": 1,

@@ -214,8 +214,6 @@ def test_cli_reports_publish_failure_without_success(target, monkeypatch):
 
 def test_real_passing_subtests_have_measured_counts_and_parent_identity(target):
     pytest_version = tuple(int(x) for x in pytest.__version__.split('.')[:2])
-    if pytest_version < (9, 0):
-        pytest.skip('builtin subtest accounting requires pytest 9')
     tests, path = scan(target, '''import unittest
 from subject import answer
 class Values(unittest.TestCase):
@@ -226,7 +224,7 @@ class Values(unittest.TestCase):
 ''')
     assert [(t.node_id, t.status) for t in tests] == [('test_subject.py::Values::test_values', 'passed')]
     meta = json.loads(path.read_text())['testless']
-    assert meta['passed_subtests'] == 3
+    assert meta['passed_subtests'] == (3 if pytest_version >= (9, 0) else 0)
     assert len(meta['accounting_sha256']) == 64
 
 

@@ -14,7 +14,6 @@ from pathlib import Path
 
 from testless.models.findings import TestMeta
 
-
 # Loaded from this invocation's private scratch directory, independently of the
 # target's pytest plugins. Passing pytest 9 subtests increment JUnit's suite
 # counter without producing testcase elements. Record the actual reports and
