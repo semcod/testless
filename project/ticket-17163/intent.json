@@ -1,0 +1,88 @@
+{
+  "schema": "new-project.intent/v3",
+  "ticket": "ticket-17163",
+  "summary": "Support verified pytest9 passing-subtest accounting without weakening scan completeness",
+  "workstream": "application",
+  "classification": {
+    "kind": "BUG",
+    "priority": "P1",
+    "origin": "regression"
+  },
+  "allowedPaths": [
+    "src/testless/collect/pytest_runner.py",
+    "tests/test_pytest_outcomes.py",
+    "project/ticket-17163/**"
+  ],
+  "forbiddenPaths": [
+    ".env",
+    ".github/**",
+    ".governance/**",
+    "pyproject.toml",
+    "uv.lock",
+    "project/ticket-*/user-*.md"
+  ],
+  "authorization": "SESSION_EXECUTION_AUTHORIZATION",
+  "queueRequest": "PLF-17163",
+  "parentRequest": "subactor/strategy:STARTER-010",
+  "dependsOn": [],
+  "conflictsWith": [],
+  "delivery": {
+    "acceptedBaseSha": "d6f6b460d67a9ca77f19d9006066eefc74f6ce95",
+    "targetBranch": "main",
+    "outcome": "Collect fresh, bound subtest accounting alongside JUnit; accept genuine pytest9 parent/subtest results while rejecting truncated, failed, missing or forged accounting and preserving previous complete scans. Source-only publication through existing protected Python3.11/3.13 checks and independent Validator.",
+    "nonGoals": [
+      "No governance adoption or protected policy changes beyond the exact accepted editing admission",
+      "No runtime activation or global installation",
+      "No automatic removal of tests or weakening of CI",
+      "No reopening delivered source ticket-010 or duplicate parser implementation"
+    ],
+    "complexity": "XS",
+    "estimatedMinutes": 20,
+    "budgets": {
+      "maxImplementationFiles": 2,
+      "maxAffectedComponents": 1,
+      "maxPublicInterfaceChanges": 0,
+      "maxRuntimeDependencies": 0
+    },
+    "architecture": {
+      "status": "accepted",
+      "decision": "Fresh collector-owned accounting from this pytest invocation must explain JUnit parent/subtest counts; raw XML alone never grants a larger completeness tolerance. Preserve public scan behavior and atomic single-artifact publication.",
+      "components": [
+        {
+          "name": "pytest-outcome-collector",
+          "paths": [
+            "src/testless/collect/pytest_runner.py",
+            "tests/test_pytest_outcomes.py"
+          ]
+        }
+      ],
+      "responsibilityChanges": false,
+      "interfaceChanges": [],
+      "dataChanges": [],
+      "ui": {
+        "impact": "none",
+        "states": [],
+        "evidence": []
+      },
+      "rollback": "Revert through protected delivery; preserve all prior valid coverage/outcome artifacts."
+    },
+    "runtimeDependencies": [],
+    "validation": [
+      {
+        "criterion": "AC-01",
+        "commands": [
+          "python -m pytest tests/test_pytest_outcomes.py -q"
+        ],
+        "evidence": "Real pytest9 passing subtests and malformed/truncated/failed controls."
+      },
+      {
+        "criterion": "AC-02",
+        "commands": [
+          "python -m pytest -q",
+          "ruff check src/testless/collect/pytest_runner.py tests/test_pytest_outcomes.py"
+        ],
+        "evidence": "Full supported Python3.11 and3.13 matrix, unchanged required checks and independent publication."
+      }
+    ]
+  }
+}

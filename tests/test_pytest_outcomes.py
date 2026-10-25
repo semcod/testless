@@ -66,9 +66,20 @@ def test_cli_propagates_child_failure_without_collected_success(target, monkeypa
     assert 'pytest' in result.output.lower()
 
 
-def fake_run(monkeypatch, *, code=0, junit=None, coverage=None, coverage_code=0):
+def fake_run(monkeypatch, *, code=0, junit=None, coverage=None, coverage_code=0, accounting="fresh"):
     def run(cmd, **kwargs):
         if cmd[2] == 'pytest':
+            env = kwargs['env']
+            data = {'schema': 'testless.pytest-accounting/v1', 'run_id': env['TESTLESS_ACCOUNTING_RUN_ID'],
+                    'collected': ['test_subject.py::test_pass'], 'finished': ['test_subject.py::test_pass'],
+                    'passed_subtests': 0, 'rootdir': str(Path.cwd()), 'cwd': str(Path.cwd())}
+            if accounting != 'fresh':
+                if isinstance(accounting, dict):
+                    data.update(accounting)
+                else:
+                    data = accounting
+            if data is not None:
+                Path(env['TESTLESS_ACCOUNTING_PATH']).write_text(json.dumps(data))
             for arg in cmd:
                 if arg.startswith('--junitxml=') and junit is not None:
                     Path(arg.split('=', 1)[1]).write_text(junit)
@@ -199,3 +210,62 @@ def test_cli_reports_publish_failure_without_success(target, monkeypatch):
     assert 'Error: Cannot publish complete pytest scan:' in result.output
     assert 'Collected ' not in result.output
     assert (cov / 'coverage.json').read_text() == previous
+
+
+def test_real_passing_subtests_have_measured_counts_and_parent_identity(target):
+    pytest_version = tuple(int(x) for x in pytest.__version__.split('.')[:2])
+    if pytest_version < (9, 0):
+        pytest.skip('builtin subtest accounting requires pytest 9')
+    tests, path = scan(target, '''import unittest
+from subject import answer
+class Values(unittest.TestCase):
+    def test_values(self):
+        for value in (42, 42, 42):
+            with self.subTest(value=value):
+                self.assertEqual(answer(), value)
+''')
+    assert [(t.node_id, t.status) for t in tests] == [('test_subject.py::Values::test_values', 'passed')]
+    meta = json.loads(path.read_text())['testless']
+    assert meta['passed_subtests'] == 3
+    assert len(meta['accounting_sha256']) == 64
+
+
+def test_real_failed_subtest_preserves_previous_complete_scan(target):
+    _, path = scan(target, 'from subject import answer\ndef test_before():\n    assert answer() == 42\n')
+    previous = path.read_bytes()
+    with pytest.raises(collector.PytestRunError):
+        scan(target, '''import unittest
+from subject import answer
+class Values(unittest.TestCase):
+    def test_values(self):
+        for value in (42, 0):
+            with self.subTest(value=value):
+                self.assertEqual(answer(), value)
+''')
+    assert path.read_bytes() == previous
+
+
+@pytest.mark.parametrize('accounting', [
+    None, {'schema': 'invalid'}, {'run_id': 'stale'}, {'passed_subtests': -1}, {'passed_subtests': True},
+    {'collected': []}, {'finished': []}, {'collected': ['test_subject.py::test_missing']},
+    {'collected': ['test_subject.py::test_pass', 'test_subject.py::test_pass']},
+    {'finished': ['test_subject.py::test_missing']},
+])
+def test_missing_stale_or_unfinished_accounting_fails_closed(target, monkeypatch, accounting):
+    fake_run(monkeypatch, junit=JUNIT, coverage=COVERAGE, accounting=accounting)
+    with pytest.raises(collector.PytestRunError, match='accounting'):
+        scan(target, '# controlled child')
+
+
+def test_unexplained_junit_subtest_count_still_rejected(target, monkeypatch):
+    fake_run(monkeypatch, junit=JUNIT.replace('tests="1"', 'tests="4"'), coverage=COVERAGE)
+    with pytest.raises(collector.PytestRunError, match='incomplete test outcomes'):
+        scan(target, '# controlled child')
+
+
+def test_accounting_does_not_hide_truncated_parent_report(target, monkeypatch):
+    fake_run(monkeypatch, junit=JUNIT.replace('tests="1"', 'tests="4"'), coverage=COVERAGE,
+             accounting={'passed_subtests': 3, 'collected': ['test_subject.py::test_missing'],
+                         'finished': ['test_subject.py::test_missing']})
+    with pytest.raises(collector.PytestRunError, match='JUnit parents differ'):
+        scan(target, '# controlled child')
